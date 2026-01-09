@@ -18,17 +18,39 @@ const createTask = async (req, res) => {
   }
 };
 
-// GET MY TASKS
+// GET MY TASKS (Pagination + Sorting)
 const getMyTasks = async (req, res) => {
   try {
-    const filter = { user: req.user._id };
+    const userId = req.user._id;
 
-    if (req.query.status) {
-      filter.status = req.query.status;
+    // query params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const sort = req.query.sort || "-createdAt";
+    const status = req.query.status;
+
+    const skip = (page - 1) * limit;
+
+    // filter
+    let filter = { user: userId };
+    if (status) {
+      filter.status = status;
     }
 
-    const tasks = await Task.find(filter);
-    res.json(tasks);
+    const tasks = await Task.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+
+    const totalTasks = await Task.countDocuments(filter);
+
+    res.json({
+      page,
+      limit,
+      totalTasks,
+      totalPages: Math.ceil(totalTasks / limit),
+      tasks
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
